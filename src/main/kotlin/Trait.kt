@@ -5,7 +5,7 @@ import java.text.DecimalFormat
 import java.util.*
 
 const val DEFAULT_RESOLUTION = 16
-val df = DecimalFormat("#.###")
+val df = DecimalFormat("0.0E0")
 
 @Target(AnnotationTarget.FIELD)
 annotation class Trait(

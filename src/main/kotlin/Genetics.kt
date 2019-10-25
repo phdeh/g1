@@ -1,7 +1,3 @@
-import java.lang.RuntimeException
-import java.lang.reflect.Method
-import kotlin.math.abs
-
 data class Report<T>(
     val result: T?,
     val generations: Int,
@@ -12,7 +8,8 @@ data class Genetics(
     val initialPopulation: Int = 10,
     val waitingGenerations: Int = 5,
     val chanceOfMutation: Double = 1.0,
-    val chanceOfCrossover: Double = 1.0
+    val chanceOfCrossover: Double = 1.0,
+    val crossoverMethod: CrossoverMethod = CrossoverMethod.ONE_POINT_CROSSOVER
 )
 
 fun <T> List<T>.reproduct(): List<T> {
@@ -55,13 +52,19 @@ fun <T> T.mutate(genetics: Genetics): T {
         val cur = it.getDouble(this)
         val ann = it.getAnnotation(Trait::class.java)
         if (ann != null && random.nextDouble() < genetics.chanceOfMutation) {
+//            do {
+//                val i = random.nextInt(ann.resolution)
+//                val b = cur.toBitSet(ann.from..ann.to, ann.resolution)
+//                b[i] = !b[i]
+//                if (b.toDouble(ann.from..ann.to, ann.resolution) !in ann.from..ann.to)
+//                    continue
+//                it.setDouble(new, b.toDouble(ann.from..ann.to, ann.resolution))
+//            } while (false)
             do {
-                val i = random.nextInt(ann.resolution)
-                val b = cur.toBitSet(ann.from..ann.to, ann.resolution)
-                b[i] = !b[i]
-                if (b.toDouble(ann.from..ann.to, ann.resolution) !in ann.from..ann.to)
+                val r = (random.nextDouble() * (ann.to - ann.from) + ann.from) / 10.0
+                if (cur + r !in ann.from..ann.to)
                     continue
-                it.setDouble(new, b.toDouble(ann.from..ann.to, ann.resolution))
+                it.setDouble(new, cur + r)
             } while (false)
         }
     }
@@ -75,22 +78,15 @@ fun <T> T.crossover(other: T, genetics: Genetics) {
         it.isAccessible = true
         val ann = it.getAnnotation(Trait::class.java)
         if (ann != null && random.nextDouble() < genetics.chanceOfCrossover) {
-            do {
-                val cur1 = it.getDouble(this)
-                val cur2 = it.getDouble(other)
-                val i = random.nextInt(ann.resolution)
-                val b1 = cur1.toBitSet(ann.from..ann.to, ann.resolution)
-                val b2 = cur2.toBitSet(ann.from..ann.to, ann.resolution)
-                val b1i = b1[i]
-                b1[i] = b2[i]
-                b2[i] = b1i
-                if (b1.toDouble(ann.from..ann.to, ann.resolution) !in ann.from..ann.to ||
-                    b2.toDouble(ann.from..ann.to, ann.resolution) !in ann.from..ann.to
-                )
-                    continue
-                it.setDouble(this, b1.toDouble(ann.from..ann.to, ann.resolution))
-                it.setDouble(other, b2.toDouble(ann.from..ann.to, ann.resolution))
-            } while (false)
+            val cur1 = it.getDouble(this)
+            val cur2 = it.getDouble(other)
+            val result = genetics.crossoverMethod.action(
+                cur1, cur2, ann
+            )
+            if (genetics.crossoverMethod.offspringNumber >= 1)
+                it.setDouble(this, result.first)
+            if (genetics.crossoverMethod.offspringNumber >= 2)
+                it.setDouble(other, result.second)
         }
     }
 }
@@ -157,4 +153,11 @@ fun <T> List<T>.findPairs(): List<Pair<T, T>> {
         curr.removeAt(i)
     }
     return list
+}
+
+fun <T> List<T>.findPairs(times: Int): List<Pair<T, T>> {
+    val curr = mutableListOf<Pair<T, T>>()
+    for (i in 1..times)
+        curr.addAll(this.findPairs())
+    return curr
 }
